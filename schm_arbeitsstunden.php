@@ -5,7 +5,7 @@ Plugin URI:
 Description: Management- und Übersichtstool für geleistete und zu leistende Arbeitsstunden der Mitglieder
 Author: Markus Buscher - Segel-Club Hennesee e.V. Meschede
 Author URI: https://schm.info
-Version: 0.1
+Version: 1.0.0
 */
 
 // Direkten Aufruf verhindern
@@ -16,13 +16,13 @@ if(!defined( 'WPINC'))
 
 // do database preparations
 global $schm_av_db_version;
-$schm_av_db_version = '1.0';
-require(__DIR__ . '/install.php');
+$schm_av_db_version = '1.0.0';
+require_once(__DIR__ . '/install.php');
 register_activation_hook( __FILE__, 'jal_install' );
 add_action( 'plugins_loaded', 'schmAVUpdateCheck' );
 
 // load methods for views
-require(__DIR__ . '/views.php');
+require_once(__DIR__ . '/views.php');
 
 
 // create menu

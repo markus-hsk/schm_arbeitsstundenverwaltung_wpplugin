@@ -1,5 +1,10 @@
 <?php
 
+// Direkten Aufruf verhindern
+if(!defined( 'WPINC'))
+{
+	die;
+}
 
 function schmAVInstall()
 {
@@ -50,7 +55,7 @@ function schmAVInstall()
 	
 	dbDelta($sqls);
     add_option('schm_av_db_version', $schm_av_db_version);
-    
+	update_option('schm_av_db_version', $schm_av_db_version);
 }
 
 
@@ -59,6 +64,6 @@ function schmAVUpdateCheck()
     global $schm_av_db_version;
     if (get_option("schm_av_db_version") != $schm_av_db_version)
     {
-        schmAVInstall();
+    	schmAVInstall();
     }
 }
