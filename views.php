@@ -263,7 +263,7 @@ abstract class SCHM_AV_Basic_Table extends WP_List_Table
     
     function getOrderBy($default_field, $default_direction)
     {
-        if(!empty($_REQUEST['orderby']) && in_array($_REQUEST['orderby'], array_keys($this->get_columns())))
+        if(!empty($_REQUEST['orderby']) && in_array($_REQUEST['orderby'], array_keys($this->get_sortable_columns())))
         {
 	        $orderby = $_REQUEST['orderby'];
         }
