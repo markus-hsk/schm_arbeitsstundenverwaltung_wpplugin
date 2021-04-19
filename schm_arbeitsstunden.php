@@ -29,13 +29,13 @@ require_once(__DIR__ . '/views.php');
 add_action('admin_menu', 'schmAVAddMenu');
 function schmAVAddMenu()
 {
-    add_menu_page('Arbeitsstunden-Verwaltung', 'Arbeitsstunden', 'read', __FILE__, 'schmAVIndex', '', 30);
+    add_menu_page('Arbeitsstunden-Verwaltung', 'Arbeitsstunden', 'read', 'schmav', 'schmAVIndex', '', 30);
 	
 	// We don't need to have the main as a submenu entry, so this removes it
-	add_submenu_page( __FILE__, '', '', 'read', __FILE__, 'schmAVIndex');
-	remove_submenu_page( __FILE__, __FILE__);
+	add_submenu_page( 'schmav', '', '', 'read', 'schmav', 'schmAVIndex');
+	remove_submenu_page( 'schmav', 'schmav');
 	
-	add_submenu_page(__FILE__, 'Arbeitsstunden-Verwaltung', 'Verwaltung', 'read', __FILE__, 'schmAVIndex');
-	add_submenu_page(__FILE__, 'Geleistete Arbeitsstunden', 'geleistet', 'read', 'geleistet', 'schmAVListDone');
-	add_submenu_page(__FILE__, 'Offene Arbeitsstunden', 'offen', 'read', 'offen', 'schmAVListOpen');
+	add_submenu_page('schmav', 'Arbeitsstunden-Verwaltung', 'Verwaltung', 'read', 'schmav_index', 'schmAVIndex');
+	add_submenu_page('schmav', 'Geleistete Arbeitsstunden', 'geleistet', 'read', 'schmav_geleistet', 'schmAVListDone');
+	add_submenu_page('schmav', 'Offene Arbeitsstunden', 'offen', 'read', 'schmav_offen', 'schmAVListOpen');
 }

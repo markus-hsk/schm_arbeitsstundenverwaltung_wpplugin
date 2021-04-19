@@ -9,6 +9,9 @@ if(!class_exists('WP_List_Table')){
 	require_once( ABSPATH . 'wp-admin/includes/class-wp-list-table.php' );
 }
 
+
+const TABLE_DEFAULT_NUM_ROWS = 10;
+
 function schmAVIndex()
 {
     ?>
@@ -20,13 +23,16 @@ function schmAVIndex()
 
 function schmAVListDone()
 {
-	$table = new SCHM_AV_List_Table();
+	$table = new SCHM_AV_ListDone_Table();
 	$table->prepare_items();
 	
 	?>
     <div class="wrap">
 
         <h1>Geleistete Arbeitsstunden</h1>
+        <form action="?page=test" method="post">
+            <?php  submit_button('Weitere Arbeitsstunden verbuchen', '', 'add_new', false); ?>
+        </form>
 
         <?php $table->display() ?>
 
@@ -36,16 +42,24 @@ function schmAVListDone()
 
 function schmAVListOpen()
 {
+	$table = new SCHM_AV_ListOpen_Table();
+	$table->prepare_items();
+	
 	?>
-    <h1>
-		<?php esc_html_e( 'Offene Arbeitsstunden', 'schmav_open_title' ); ?>
-    </h1>
+    <div class="wrap">
+
+        <h1>Offene Arbeitsstunden</h1>
+		<?php $table->display() ?>
+
+    </div>
 	<?php
+	
+	
 }
 
 
 
-class SCHM_AV_List_Table extends WP_List_Table
+class SCHM_AV_ListDone_Table extends SCHM_AV_Basic_Table
 {
     function __construct()
     {
@@ -65,6 +79,8 @@ class SCHM_AV_List_Table extends WP_List_Table
 			case 'Name':
 			case 'Beschreibung':
 				return $item[$column_name];
+            case 'Datum':
+	            return $this->formatColumnDate($item[$column_name]);
 			default:
 				return print_r($item,true); //Show the whole array for troubleshooting purposes
 		}
@@ -72,13 +88,7 @@ class SCHM_AV_List_Table extends WP_List_Table
 	
 	function column_Dauer($item)
     {
-        return number_format_i18n( $item['Dauer'], 1).' h';
-    }
-    
-    function column_Datum($item)
-    {
-	    $dateformat = get_option( 'date_format' );
-        return date_i18n($dateformat, strtotime($item['Datum']));
+        return $this->formatColumnStunden($item['Dauer']);
     }
 	
 	function get_columns(){
@@ -102,99 +112,154 @@ class SCHM_AV_List_Table extends WP_List_Table
 		return $sortable_columns;
 	}
 	
-	
-	
 	function prepare_items()
     {
 		global $wpdb; //This is used only if making any database queries
 		
-		/**
-		 * First, lets decide how many records per page to show
-		 */
-		$per_page = 10;
+		$orderby = (!empty($_REQUEST['orderby'])) ? $_REQUEST['orderby'] : 'Datum'; //If no sort, default to title
+	    $order = (!empty($_REQUEST['order'])) ? $_REQUEST['order'] : 'asc'; //If no order, default to asc
+	
+	    $sql = "SELECT
+                    arbeitsstunden.*,
+                    CONCAT(mitglieder.Nachname, ', ', mitglieder.Vorname) AS Name
+                FROM {$wpdb->prefix}schm_av_arbeitsstunden arbeitsstunden
+                LEFT JOIN {$wpdb->prefix}schm_av_mitglieder mitglieder
+                    ON arbeitsstunden.Mitglied = mitglieder.Id
+                ORDER BY $orderby $order";
+        $data = $wpdb->get_results( $sql, ARRAY_A );
+        
+        $this->items = $data;
 		
+		parent::prepare_items();
+	}
+}
+
+
+class SCHM_AV_ListOpen_Table extends SCHM_AV_Basic_Table
+{
+	function __construct()
+	{
+		global $status, $page;
+		parent::__construct( array(
+			'singular' => 'noch offene Arbeitsstunden',
+			'plural'   => 'noch offene Arbeitsstunden',
+			'ajax'     => false                         //does this table support ajax?
+		));
+	}
+	
+	
+	function column_default($item, $column_name)
+	{
+		switch($column_name)
+		{
+			case 'Name':
+			case 'Arbeitsgruppe':
+            case 'Jahr':
+				return $item[$column_name];
+            case 'Stunden':
+	           return $this->formatColumnStunden($item[$column_name]);
+            case 'Stichtag':
+	            return $this->formatColumnDate($item[$column_name]);
+			default:
+			
+				return print_r($item,true); //Show the whole array for troubleshooting purposes
+		}
+	}
+	
+	function get_columns(){
+		$columns = array(
+			//'cb'           => '<input type="checkbox" />', //Render a checkbox instead of text
+			'Name'          => 'Mitglied',
+			'Arbeitsgruppe' => 'Arbeitsgruppe',
+			'Jahr'          => 'Jahr',
+			'Stunden'       => 'Stunden',
+			'Stichtag'      => 'Stichtag'
+		);
+		return $columns;
+	}
+	
+	
+	function get_sortable_columns() {
+		$sortable_columns = array(
+			'Name'          => array( 'Name', true ),     //true means it's already sorted
+			'Arbeitsgruppe' => array( 'Arbeitsgruppe', false ),
+			'Jahr'          => array( 'Dauer', false ),
+			'Stunden'       => array( 'Stunden', false ),
+			'Stichtag'      => array( 'Stichtag', false ),
+		);
+		return $sortable_columns;
+	}
+	
+	
+	
+	function prepare_items()
+	{
+		global $wpdb; //This is used only if making any database queries
 		
-		/**
-		 * REQUIRED. Now we need to define our column headers. This includes a complete
-		 * array of columns to be displayed (slugs & titles), a list of columns
-		 * to keep hidden, and a list of columns that are sortable. Each of these
-		 * can be defined in another method (as we've done here) before being
-		 * used to build the value for our _column_headers property.
-		 */
+		$orderby = (!empty($_REQUEST['orderby'])) ? $_REQUEST['orderby'] : 'Name'; //If no sort, default to title
+		$order = (!empty($_REQUEST['order'])) ? $_REQUEST['order'] : 'asc'; //If no order, default to asc
+        
+        $jahr = (!empty($_REQUEST['jahr'])) ? 'WHERE Jahr = ' . intval($_REQUEST['jahr']) : '';
+		
+		$sql = "SELECT
+                    saison.*,
+                    CONCAT(mitglieder.Nachname, ', ', mitglieder.Vorname) AS Name,
+                    arbeitsgruppen.Name AS Arbeitsgruppe
+		        FROM {$wpdb->prefix}schm_av_saison saison
+                INNER JOIN {$wpdb->prefix}schm_av_mitglieder mitglieder
+                    ON saison.Mitglied = mitglieder.Id
+                LEFT JOIN {$wpdb->prefix}schm_av_arbeitsgruppen arbeitsgruppen
+                    ON saison.Arbeitsgruppe = arbeitsgruppen.Id
+                $jahr
+                ORDER BY $orderby $order";
+		$data = $wpdb->get_results( $sql, ARRAY_A );
+		
+		$this->items = $data;
+		
+		parent::prepare_items();
+	}
+}
+
+
+abstract class SCHM_AV_Basic_Table extends WP_List_Table
+{
+	function prepare_items()
+	{
+		$per_page = TABLE_DEFAULT_NUM_ROWS;
+		
 		$columns = $this->get_columns();
 		$hidden = array();
 		$sortable = $this->get_sortable_columns();
 		
-		
-		/**
-		 * REQUIRED. Finally, we build an array to be used by the class for column
-		 * headers. The $this->_column_headers property takes an array which contains
-		 * 3 other arrays. One for all columns, one for hidden columns, and one
-		 * for sortable columns.
-		 */
 		$this->_column_headers = array($columns, $hidden, $sortable);
 		
-		
-		/**
-		 * Optional. You can handle your bulk actions however you see fit. In this
-		 * case, we'll handle them within our package just to keep things clean.
-		 */
-		//$this->process_bulk_action();
-		
-		
-	
-	    
-	
-	    $orderby = (!empty($_REQUEST['orderby'])) ? $_REQUEST['orderby'] : 'Datum'; //If no sort, default to title
-	    $order = (!empty($_REQUEST['order'])) ? $_REQUEST['order'] : 'asc'; //If no order, default to asc
-	
-	    $sql = "SELECT arbeitsstunden.*, CONCAT(mitglieder.Nachname, ', ', mitglieder.Vorname) AS Name
-FROM {$wpdb->prefix}schm_av_arbeitsstunden arbeitsstunden
-LEFT JOIN {$wpdb->prefix}schm_av_mitglieder mitglieder
-    ON arbeitsstunden.Mitglied = mitglieder.Id
-ORDER BY $orderby $order";
-        $data = $wpdb->get_results( $sql, ARRAY_A );
-		
-		
-		/**
-		 * REQUIRED for pagination. Let's figure out what page the user is currently
-		 * looking at. We'll need this later, so you should always include it in
-		 * your own package classes.
-		 */
 		$current_page = $this->get_pagenum();
 		
-		/**
-		 * REQUIRED for pagination. Let's check how many items are in our data array.
-		 * In real-world use, this would be the total number of items in your database,
-		 * without filtering. We'll need this later, so you should always include it
-		 * in your own package classes.
-		 */
-		$total_items = count($data);
+		$total_items = count($this->items);
+		$this->items = array_slice($this->items,(($current_page-1)*$per_page),$per_page);
 		
-		
-		/**
-		 * The WP_List_Table class does not handle pagination for us, so we need
-		 * to ensure that the data is trimmed to only the current page. We can use
-		 * array_slice() to
-		 */
-		$data = array_slice($data,(($current_page-1)*$per_page),$per_page);
-		
-		
-		
-		/**
-		 * REQUIRED. Now we can add our *sorted* data to the items property, where
-		 * it can be used by the rest of the class.
-		 */
-		$this->items = $data;
-		
-		
-		/**
-		 * REQUIRED. We also have to register our pagination options & calculations.
-		 */
 		$this->set_pagination_args( array(
 			'total_items' => $total_items,                  //WE have to calculate the total number of items
 			'per_page'    => $per_page,                     //WE have to determine how many items to show on a page
 			'total_pages' => ceil($total_items/$per_page)   //WE have to calculate the total number of pages
 		) );
 	}
+	
+	function formatColumnDate($val)
+    {
+        if($val)
+        {
+	        $dateformat = get_option( 'date_format' );
+	        return date_i18n($dateformat, strtotime($val));
+        }
+	    else
+        {
+            return '';
+        }
+    }
+    
+    function formatColumnStunden($val)
+    {
+	    return number_format_i18n( $val, 1).' h';
+    }
 }
