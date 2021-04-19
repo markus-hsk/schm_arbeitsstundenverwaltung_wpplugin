@@ -116,8 +116,7 @@ class SCHM_AV_ListDone_Table extends SCHM_AV_Basic_Table
     {
 		global $wpdb; //This is used only if making any database queries
 		
-		$orderby = (!empty($_REQUEST['orderby'])) ? $_REQUEST['orderby'] : 'Datum'; //If no sort, default to title
-	    $order = (!empty($_REQUEST['order'])) ? $_REQUEST['order'] : 'asc'; //If no order, default to asc
+		[$orderby, $order] = $this->getOrderBy('Datum', 'asc');
 	
 	    $sql = "SELECT
                     arbeitsstunden.*,
@@ -196,8 +195,7 @@ class SCHM_AV_ListOpen_Table extends SCHM_AV_Basic_Table
 	{
 		global $wpdb; //This is used only if making any database queries
 		
-		$orderby = (!empty($_REQUEST['orderby'])) ? $_REQUEST['orderby'] : 'Name'; //If no sort, default to title
-		$order = (!empty($_REQUEST['order'])) ? $_REQUEST['order'] : 'asc'; //If no order, default to asc
+		[$orderby, $order] = $this->getOrderBy('Name', 'asc');
         
         $jahr = (!empty($_REQUEST['jahr'])) ? 'WHERE Jahr = ' . intval($_REQUEST['jahr']) : '';
 		
@@ -261,5 +259,28 @@ abstract class SCHM_AV_Basic_Table extends WP_List_Table
     function formatColumnStunden($val)
     {
 	    return number_format_i18n( $val, 1).' h';
+    }
+    
+    function getOrderBy($default_field, $default_direction)
+    {
+        if(!empty($_REQUEST['orderby']) && in_array($_REQUEST['orderby'], array_keys($this->get_columns())))
+        {
+	        $orderby = $_REQUEST['orderby'];
+        }
+        else
+        {
+            $orderby = $default_field;
+        }
+	    
+        if(!empty($_REQUEST['order']) && in_array($_REQUEST['order'], ['asc', 'desc']))
+        {
+            $order = $_REQUEST['order'];
+        }
+        else
+        {
+            $order = $default_direction;
+        }
+        
+        return [$orderby, $order];
     }
 }
